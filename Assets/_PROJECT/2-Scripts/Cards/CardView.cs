@@ -43,7 +43,7 @@ namespace FXnRXn
 
         private void Start()
         {
-	        Debug.Log(Directory.GetDirectoryRoot(Application.dataPath));
+	        
         }
 
         # endregion
