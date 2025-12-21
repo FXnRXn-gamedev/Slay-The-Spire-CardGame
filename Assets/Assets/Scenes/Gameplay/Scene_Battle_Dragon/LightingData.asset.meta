@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: f645da82911b542a49f32983e73888cb
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 112000000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 190721
+  packageName: Dragon Crashers - URP 2D Sample Project
+  packageVersion: 1.61
+  assetPath: Assets/Scenes/Gameplay/Scene_Battle_Dragon/LightingData.asset
+  uploadId: 722358

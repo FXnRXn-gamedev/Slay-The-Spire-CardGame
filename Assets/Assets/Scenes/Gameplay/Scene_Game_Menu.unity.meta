@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 46d81aa3d4d39ea429ffad6d5857a6e4
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 190721
+  packageName: Dragon Crashers - URP 2D Sample Project
+  packageVersion: 1.61
+  assetPath: Assets/Scenes/Gameplay/Scene_Game_Menu.unity
+  uploadId: 722358
