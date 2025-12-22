@@ -51,10 +51,13 @@ namespace FXnRXn
 
         #region Public Properties
 
-        # endregion
-
-
-        # region Private Properties
+        /// <summary>
+        /// Create a copy of this card data
+        /// </summary>
+        public CardView Clone()
+        {
+	        return Instantiate(this);
+        }
 
         # endregion
 
