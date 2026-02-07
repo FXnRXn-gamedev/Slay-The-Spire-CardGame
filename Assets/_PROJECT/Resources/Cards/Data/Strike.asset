@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5adc5eed980f774988a4c0c64543ede, type: 3}
+  m_Name: Strike
+  m_EditorClassIdentifier: FXnRXn::FXnRXn.CardData
+  cardName: Strike Protocol
+  description: Deal direct damage to a single enemy
+  cardArt: {fileID: 21300000, guid: 78f52a40bfc96d94889077c47afefed1, type: 3}
+  cardType: 0
+  energyCost: 1
+  targetType: 0
+  effects:
+  - {fileID: 11400000, guid: 0818481c27529bf42b4835c4b8d66004, type: 2}
+  isUpgraded: 0
+  upgradedVersion: {fileID: 0}
+  cardColor: {r: 1, g: 1, b: 1, a: 1}
+  playVFX: {fileID: 0}
+  playSound: {fileID: 0}

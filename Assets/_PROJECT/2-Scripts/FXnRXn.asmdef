@@ -1,0 +1,23 @@
+{
+    "name": "FXnRXn",
+    "rootNamespace": "",
+    "references": [
+        "GUID:324caed91501a9c47a04ebfd87b68794",
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "GUID:785c4a70a909519498dee16fcb697cf0",
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:21d1eb854b91ade49bc69a263d12bee2",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:b010daa1f23650141a7a42bae3b333e8",
+        "GUID:75469ad4d38634e559750d17036d5f7c"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
