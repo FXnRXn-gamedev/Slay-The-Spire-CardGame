@@ -1,3 +1,4 @@
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -150,6 +151,20 @@ namespace FXnRXn.Tweening
         public static void KillTweens(this Transform transform)
         {
             transform.gameObject.KillTweens();
+        }
+        
+        
+        /// <summary>
+        /// Convert Tween to awaitable UniTask
+        /// </summary>
+        public static UniTask ToUniTask(this Tween tween)
+        {
+            if (tween == null || tween.IsComplete)
+                return UniTask.CompletedTask;
+            
+            var tcs = new UniTaskCompletionSource();
+            tween.OnComplete(() => tcs.TrySetResult());
+            return tcs.Task;
         }
 
     }

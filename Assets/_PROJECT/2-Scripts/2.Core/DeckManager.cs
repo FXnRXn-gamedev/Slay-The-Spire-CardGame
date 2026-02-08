@@ -62,9 +62,6 @@ namespace FXnRXn
             
 	        ShuffleDeck();
         }
-
-
-    	// ---------------------------------------- Public Properties --------------------------------------------------
 	    
 	    /// <summary>
 	    /// Shuffle the draw pile using Fisher-Yates algorithm
@@ -84,9 +81,92 @@ namespace FXnRXn
             
 		    if(useDebug) DebugSystem.Info($"Deck shuffled! Draw pile: {drawPile.Count} cards");
 	    }
+	    
+	    // ------------------------------------------ Draw Cards -------------------------------------------------------
+	    
+	    /// <summary>
+	    /// Draw multiple cards
+	    /// </summary>
+	    public void DrawCards(int count)
+	    {
+		    for (int i = 0; i < count; i++)
+		    {
+			    DrawCard();
+		    }
+	    }
+
+	    /// <summary>
+	    /// Draw a single card from the draw pile to hand
+	    /// </summary>
+	    public CardData DrawCard()
+	    {
+		    // If draw pile is empty, shuffle discard pile into draw pile
+		    if (drawPile.Count == 0)
+		    {
+			    if (discardPile.Count == 0)
+			    {
+				    Debug.LogWarning("No cards to draw!");
+				    return null;
+			    }
+                
+			    ReshuffleDiscardIntoDraw();
+		    }
+            
+		    // Check hand size limit
+		    if (hand.Count >= maxHandSize)
+		    {
+			    Debug.LogWarning("Hand is full! Discarding drawn card.");
+			    CardData drawnCard = drawPile[0];
+			    drawPile.RemoveAt(0);
+			    DiscardCard(drawnCard);
+			    return null;
+		    }
+            
+		    // Draw the card
+		    CardData card = drawPile[0];
+		    drawPile.RemoveAt(0);
+		    hand.Add(card);
+            
+		    OnCardDrawn?.Invoke(card);
+		    OnDrawPileChanged?.Invoke(drawPile.Count);
+            
+		    if(useDebug) DebugSystem.Info($"Drew card: {card.cardName}");
+		    return card;
+	    }
 
 
     	// ---------------------------------------- Private Properties -------------------------------------------------
+	    
+	    /// <summary>
+	    /// Move a card from hand to discard pile
+	    /// </summary>
+	    public void DiscardCard(CardData card)
+	    {
+		    if (hand.Contains(card))
+		    {
+			    hand.Remove(card);
+		    }
+            
+		    discardPile.Add(card);
+		    OnCardDiscarded?.Invoke(card);
+		    OnDiscardPileChanged?.Invoke(discardPile.Count);
+            
+		    if(useDebug) DebugSystem.Info($"Discarded card: {card.cardName}");
+	    }
+	    
+	    /// <summary>
+	    /// Move discard pile to draw pile and shuffle
+	    /// </summary>
+	    private void ReshuffleDiscardIntoDraw()
+	    {
+		    if(useDebug) DebugSystem.Info("Reshuffling discard pile into draw pile...");
+            
+		    drawPile.AddRange(discardPile);
+		    discardPile.Clear();
+            
+		    ShuffleDeck();
+		    OnDiscardPileChanged?.Invoke(discardPile.Count);
+	    }
 
 
     	// ------------------------------------------ Helper Method ----------------------------------------------------

@@ -1,6 +1,11 @@
+using Cysharp.Threading.Tasks;
 using FXnRXn.Tweening;
 using TriInspector;
 using UnityEngine;
+using UnityEngine.Splines;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace FXnRXn
 {
@@ -11,43 +16,29 @@ namespace FXnRXn
 	/// </summary>
     public class CardHand : Singleton<CardHand>
     {
-	    public enum LayoutMode
-	    {
-		    Arc,
-		    Spline,
-		    Linear
-	    }
-	    
-	    
 	    
 	    // ------------------------------------------ Properties -------------------------------------------------------
-	    [Title("Mode")]
-	    [SerializeField] private LayoutMode layoutMode = LayoutMode.Spline;
-	    
-	    [Title("Arc Layout Settings")]
-	    [ShowIf(nameof(layoutMode), LayoutMode.Arc)] [SerializeField] private float arcRadius = 800f;
-	    [ShowIf(nameof(layoutMode), LayoutMode.Arc)] [SerializeField] private float maxArcAngle = 30f;
-	    [ShowIf(nameof(layoutMode), LayoutMode.Arc)] [SerializeField] private float cardSpacing = 150f;
-	    [ShowIf(nameof(layoutMode), LayoutMode.Arc)] [SerializeField] private float verticalOffset = -400f;
 	    
 	    [Title("Spline Layout Settings")]
-	    [ShowIf(nameof(layoutMode), LayoutMode.Spline)] [SerializeField] private SplinePath splinePath = new SplinePath();
-	    [ShowIf(nameof(layoutMode), LayoutMode.Spline)] [SerializeField] private bool useUniformDistribution = true;
+	    [SerializeField] private SplineContainer splineContainer;
+	    [SerializeField] private int splineIndex = 0;
+	    [SerializeField] private float splineToWorldScale = 0.01f;
 	    
 	    [Title("Refferences")]
 	    [SerializeField] private Transform cardsParent;
-	    
 	    
 	    [Title("Animation")]
 	    [SerializeField] private float animationDuration = 0.3f;
 	    [SerializeField] private EaseType animationEase = EaseType.OutQuad;
 	    [SerializeField] private float staggerDelay = 0.05f; // Delay between each card
-        
-	    [Title("Card Rotation")]
-	    [SerializeField] private bool rotateCards = true;
-	    [SerializeField] private float maxRotation = 15f;
-	    [SerializeField] private bool useTangentRotation = true; // For spline mode
-        
+	    
+	    [Title("Draw Animation")]
+	    [SerializeField] private Vector3 deckSpawnPosition = new Vector3(4f, -6f, 0f);
+	    [SerializeField] private float baseCardScale = 0.32f;
+	    [SerializeField] private float drawStartScaleMultiplier = 0.3f;
+	    [field: SerializeField] private float cardSpacing = 0.1f; // Adjustable spacing between cards
+	    [field: SerializeField] private float cardDepthOffset = 0.01f; // Z-offset for card layering
+	    
 	    [Title("Hover Effect")]
 	    [SerializeField] private float hoverScale = 1.1f;
 	    [SerializeField] private float hoverYOffset = 0.50f;
@@ -56,219 +47,139 @@ namespace FXnRXn
 	    [Title("Debug")] 
 	    [SerializeField] private bool useDebug = false;
 	    [SerializeField] private bool useGizmos = false;
-
-  	    // ---------------------------------------- Unity Callback -----------------------------------------------------
-        
-
-
-    	// --------------------------------------- Public Functionality ------------------------------------------------
-	    /// <summary>
-	    /// Arrange all child cards based on selected layout mode
-	    /// </summary>
-	    public void ArrangeCards()
-	    {
-		    int cardCount = cardsParent != null ? cardsParent.childCount : transform.childCount - 1;
-		    if (cardCount == 0) return;
-		    
-		    switch (layoutMode)
-		    {
-			    case LayoutMode.Arc:
-				    ArrangeCardsArc(cardCount);
-				    break;
-			    case LayoutMode.Spline:
-				    ArrangeCardsSpline(cardCount);
-				    break;
-			    case LayoutMode.Linear:
-				    ArrangeCardsLinear(cardCount);
-				    break;
-		    }
-	    }
 	    
-	    // --------------------------------------- Card Arrangement ----------------------------------------------------
-	    /// <summary>
-	    /// Arrange cards in arc layout (original method)
-	    /// </summary>
-	    private void ArrangeCardsArc(int cardCount)
-	    {
-		    float angleStep = cardCount > 1 ? maxArcAngle / (cardCount - 1) : 0;
-		    float startAngle = -maxArcAngle / 2f;
-		    
-		    for (int i = 0; i < cardCount; i++)
-		    {
-			    Transform card = cardsParent.GetChild(i);
-			    Transform cardTrans = card;
-                
-			    if (cardTrans == null) continue;
-                
-			    // Calculate position on arc
-			    float angle = startAngle + (angleStep * i);
-			    float angleRad = angle * Mathf.Deg2Rad;
-                
-			    // Calculate arc position
-			    float x = Mathf.Sin(angleRad) * arcRadius;
-			    float y = verticalOffset - (Mathf.Cos(angleRad) * arcRadius - arcRadius);
-                
-			    Vector2 targetPosition = new Vector2(x, y);
-                
-			    // Calculate rotation
-			    Vector3 targetRotation = Vector3.zero;
-			    if (rotateCards)
-			    {
-				    float rotationAngle = Mathf.Lerp(-maxRotation, maxRotation, (float)i / Mathf.Max(1, cardCount - 1));
-				    targetRotation = new Vector3(0, 0, rotationAngle);
-			    }
-                
-			    // Animate to position with stagger
-			    float delay = i * staggerDelay;
-			    cardTrans.TweenPosition(targetPosition, animationDuration)
-				    .SetEase(animationEase)
-				    .SetDelay(delay);
-                    
-			    cardTrans.TweenRotation(targetRotation, animationDuration, true)
-				    .SetEase(animationEase)
-				    .SetDelay(delay);
-		    }
-	    }
-
-	    /// <summary>
-	    /// Arrange cards along spline path (new method)
-	    /// </summary>
-	    private void ArrangeCardsSpline(int cardCount)
-	    {
-		    // Mark spline as dirty to recalculate if needed
-            splinePath.MarkDirty();
-            
-            for (int i = 0; i < cardCount; i++)
-            {
-                Transform card = cardsParent.GetChild(i);
-                Transform cardTrans = card;
-                
-                if (cardTrans == null) continue;
-                
-                // Calculate normalized position (0-1)
-                float t = cardCount > 1 ? (float)i / (cardCount - 1) : 0.5f;
-                
-                // Get position and rotation from spline
-                Vector2 targetPosition;
-                float targetRotationAngle;
-                
-                if (useUniformDistribution)
-                {
-                    // Evenly distributed along curve length
-                    targetPosition = splinePath.GetPointAtDistance(t);
-                    targetRotationAngle = splinePath.GetRotationAtDistance(t);
-                }
-                else
-                {
-                    // Distributed by parameter t
-                    targetPosition = splinePath.GetPoint(t);
-                    targetRotationAngle = splinePath.GetRotation(t);
-                }
-                
-                // Apply rotation
-                Vector3 targetRotation = Vector3.zero;
-                if (rotateCards)
-                {
-                    if (useTangentRotation)
-                    {
-                        // Use tangent-based rotation (follows curve)
-                        targetRotation = new Vector3(0, 0, targetRotationAngle - 90f); // -90 to align card upright
-                    }
-                    else
-                    {
-                        // Use linear interpolation
-                        float rotationAngle = Mathf.Lerp(-maxRotation, maxRotation, t);
-                        targetRotation = new Vector3(0, 0, rotationAngle);
-                    }
-                }
-                
-                // Animate to position with stagger
-                float delay = i * staggerDelay;
-                cardTrans.TweenPosition(targetPosition, animationDuration)
-                    .SetEase(animationEase)
-                    .SetDelay(delay);
-                    
-                cardTrans.TweenRotation(targetRotation, animationDuration, true)
-                    .SetEase(animationEase)
-                    .SetDelay(delay);
-            }
-	    }
-
-	    /// <summary>
-	    /// Arrange cards in linear layout (simple fallback)
-	    /// </summary>
-	    private void ArrangeCardsLinear(int cardCount)
-	    {
-		    float totalWidth = (cardCount - 1) * cardSpacing;
-		    float startX = -totalWidth / 2f;
-            
-		    for (int i = 0; i < cardCount; i++)
-		    {
-			    Transform card = cardsParent.GetChild(i);
-			    Transform cardTrans = card;
-                
-			    if (cardTrans == null) continue;
-                
-			    float x = startX + (i * cardSpacing);
-			    Vector2 targetPosition = new Vector2(x, verticalOffset);
-                
-			    // Animate to position with stagger
-			    float delay = i * staggerDelay;
-			    cardTrans.TweenPosition(targetPosition, animationDuration)
-				    .SetEase(animationEase)
-				    .SetDelay(delay);
-                    
-			    // Reset rotation
-			    cardTrans.TweenRotation(Vector3.zero, animationDuration, true)
-				    .SetEase(animationEase)
-				    .SetDelay(delay);
-		    }
-	    }
+	    
+	    
+	    public readonly List<GameObject> cards = new List<GameObject>();
+	    
 
 
-    	// ---------------------------------------- public Properties --------------------------------------------------
+  	    // ---------------------------------------- Initialization -----------------------------------------------------
+
+        
+        // --------------------------------------- Card Arrangement ----------------------------------------------------
+        
+    	
 	    /// <summary>
 	    /// Add a card to the hand with animation
 	    /// </summary>
-	    public void AddCard(GameObject cardObject, bool hasParent = true)
+	    public async UniTask AddCard(GameObject cardObject, bool hasParent = true)
 	    {
 		    if (hasParent)
 		    {
-			    cardsParent.transform.SetParent(transform);
+			    cardObject.transform.SetParent(cardsParent);
 		    }
 		    else
 		    {
 			    cardObject.transform.SetParent(transform);
 		    }
-            
-		    // Start from deck position (off-screen bottom)
-		    Transform cardTrans = cardObject.transform;
-		    cardTrans.localPosition = new Vector2(0, -1000);
-		    cardTrans.localScale = Vector3.zero;
-            
-		    // Animate in with bounce
-		    cardTrans.TweenScale(Vector3.one, 0.3f)
-			    .SetEase(EaseType.OutBack);
-            
-		    // Rearrange all cards
-		    ArrangeCards();
+		    
+		    cardObject.transform.localPosition = deckSpawnPosition;
+		    cardObject.transform.localScale = Vector3.zero;
+		    await cardObject.transform.TweenScale(Vector3.one * baseCardScale, 0.15f).SetEase(EaseType.InOutBounce).ToUniTask();
+
+		    await UniTask.WaitUntil(() =>
+		    {
+			    cards.Add(cardObject);
+			    return true;
+		    });
+		    
+		    
+	
+
+		    await UpdateCardPositions(cardObject, 0.25f);
 	    }
+
+	    private async UniTask UpdateCardPositions(GameObject cardObject, float duration)
+	    {
+		    if (!ValidateSpline()) return;
+		    if (cards.Count == 0) return;
+		    
+		    //~===========================================================================
+		    Spline spline = splineContainer.Spline;
+		    int cardCount = cardsParent.transform.childCount;
+		    float centerPosition = 0.5f;
+		    float totalSpacing = (cardCount - 1) * cardSpacing;
+		    float startPosition = centerPosition - (totalSpacing / 2f);
+			
+		    List<UniTask> tweenTasks = new List<UniTask>();
+		    for (int i = 0; i < cardCount; i++)
+		    {
+			    float normalizedPosition = startPosition + (i * cardSpacing);
+			    normalizedPosition = Mathf.Clamp01(normalizedPosition);
+			    Vector3 splinePosition = spline.EvaluatePosition(normalizedPosition);
+			    Vector3 tangent = spline.EvaluateTangent(normalizedPosition);
+			    Vector3 upVector = spline.EvaluateUpVector(normalizedPosition);
+			    Quaternion rotation = Quaternion.LookRotation(-upVector, Vector3.Cross(-upVector, tangent).normalized);
+			    Vector3 finalPosition = transform.position + splinePosition + (i * cardDepthOffset * Vector3.back);
+			    tweenTasks.Add(cards[i].transform.TweenPosition(finalPosition, duration, false).ToUniTask().ContinueWith(() =>
+			    {
+				    cards[i].transform.TweenScale(Vector3.one * baseCardScale * drawStartScaleMultiplier, duration).ToUniTask();
+			    }));
+			    tweenTasks.Add(cards[i].transform.TweenRotation(rotation.eulerAngles, duration, false).ToUniTask());
+			    // Also ensure proper scale
+			    if (cards[i].transform.localScale != Vector3.one * baseCardScale)
+			    {
+				    tweenTasks.Add(cards[i].transform.TweenScale(Vector3.one * baseCardScale, duration).ToUniTask());
+			    }
+			    
+			    await Task.Delay((int)(duration * 1000));
+		    }
+		    await UniTask.WhenAll(tweenTasks);
+		    
+		    
+		    
+		    
+		    
+		    //~===========================================================================
+		    
+		    
+		    
+		    // float cardSpacing = 1f / 10f;
+		    // float firstCardPosition = 0.5f - (cards.Count - 1) * cardSpacing / 2f;
+		    // Spline spline = splineContainer.Spline;
+		    //
+		    // for (int i = 0; i < cards.Count; i++)
+		    // {
+			   //  float p = firstCardPosition + i * cardSpacing;
+			   //  Vector3 splinePosition = spline.EvaluatePosition(p);
+			   //  Vector3 forward = spline.EvaluateTangent(p);
+			   //  Vector3 up = spline.EvaluateUpVector(p);
+			   //  Quaternion rotation = Quaternion.LookRotation(-up, Vector3.Cross(-up, forward).normalized);
+      //           
+			   //  cards[i].transform.TweenPosition(splinePosition - 0.01f * i * Vector3.back, duration, true);
+			   //  cards[i].transform.TweenRotation(rotation.eulerAngles, duration, true);
+			   //  cards[i].transform.TweenScale(Vector3.one * baseCardScale, duration);
+			   //  
+			   //  // Update sorting order: last card gets highest sorting order
+			   //  SpriteRenderer spriteRenderer = cards[i].GetComponent<SpriteRenderer>();
+			   //  if (spriteRenderer != null)
+			   //  {
+				  //   spriteRenderer.sortingOrder = i; // Later cards have higher sorting order
+			   //  }
+			   //  
+			   //  
+			   //  await Task.Delay((int)(duration * 1000));
+		    // }
+
+		    
+	    }
+	    
+	    
+	    
+	    
+	    
+	    
+	    
+	    // --------------------------------------- Public Functionality ------------------------------------------------
 	    
 	    
 	    /// <summary>
 	    /// Remove a card from the hand
 	    /// </summary>
-	    public void RemoveCard(GameObject cardObject, bool hasParent = true)
+	    public void RemoveCard(GameObject cardObject)
 	    {
-		    if (hasParent)
-		    {
-			    cardsParent.transform.SetParent(null);
-		    }
-		    else
-		    {
-			    cardObject.transform.SetParent(null);
-		    }
-		    ArrangeCards();
+		    cardObject.transform.SetParent(null);
 	    }
 	    
 	    
@@ -279,57 +190,70 @@ namespace FXnRXn
 	    {
 		    if (isHovering)
 		    {
-			    // Scale up and move up
-			    cardTrans.TweenScale(Vector3.one * hoverScale, hoverDuration)
+			    cardTrans.TweenScale(Vector3.one * baseCardScale * hoverScale, hoverDuration)
 				    .SetEase(EaseType.OutQuad);
-                    
-			    Vector2 currentPos = cardTrans.localPosition;
-			    cardTrans.TweenPosition(currentPos + Vector2.up * hoverYOffset, hoverDuration)
+
+			    Vector3 currentPos = cardTrans.localPosition;
+			    cardTrans.TweenPosition(currentPos + Vector3.up * (hoverYOffset * splineToWorldScale), hoverDuration, true)
 				    .SetEase(EaseType.OutQuad);
 		    }
 		    else
 		    {
-			    // Return to normal - rearrange will handle position
-			    cardTrans.TweenScale(Vector3.one, hoverDuration)
+			    cardTrans.TweenScale(Vector3.one * baseCardScale, hoverDuration)
 				    .SetEase(EaseType.OutQuad);
-                    
-			    ArrangeCards();
 		    }
 	    }
 	    
 	    /// <summary>
 	    /// Get the number of cards in hand
 	    /// </summary>
-	    public int GetCardCount()
+	    public int GetCardCount() => cardsParent != null ? cardsParent.childCount : transform.childCount - 1;
+	    
+	    /// <summary>
+	    /// Set the spline container reference.
+	    /// </summary>
+	    public void SetSplineContainer(SplineContainer container, int index = 0)
 	    {
-		    return cardsParent != null ? cardsParent.childCount : transform.childCount - 1;
+		    splineContainer = container;
+		    splineIndex = index;
 	    }
 	    
 	    
+
+	    // ---------------------------------------- private Properties -------------------------------------------------
 	    /// <summary>
-	    /// Set layout mode
+	    /// Validate that spline container and index are valid.
 	    /// </summary>
-	    public void SetLayoutMode(LayoutMode mode)
+	    private bool ValidateSpline()
 	    {
-		    layoutMode = mode;
-		    ArrangeCards();
-	    }
-	    
-	    /// <summary>
-	    /// Update spline control points
-	    /// </summary>
-	    public void UpdateSplinePoints(Vector2 start, Vector2 control1, Vector2 control2, Vector2 end)
-	    {
-		    splinePath.startPoint = start;
-		    splinePath.controlPoint1 = control1;
-		    splinePath.controlPoint2 = control2;
-		    splinePath.endPoint = end;
-		    splinePath.MarkDirty();
-            
-		    if (layoutMode == LayoutMode.Spline)
+		    if (splineContainer == null)
 		    {
-			    ArrangeCards();
+			    if(useDebug) DebugSystem.Custom("CardHand: SplineContainer is not assigned!", Color.brown);
+			    return false;
 		    }
+
+		    if (splineIndex < 0 || splineIndex >= splineContainer.Splines.Count)
+		    {
+			    if(useDebug) DebugSystem.Custom($"CardHand: Invalid spline index {splineIndex}!", Color.brown);
+			    return false;
+		    }
+
+		    return true;
+	    }
+	    
+	    
+	    /// <summary>
+	    /// Animate card to target position and rotation.
+	    /// </summary>
+	    private void AnimateCardToPosition(Transform card, Vector3 position, Vector3 rotation, float delay)
+	    {
+		    card.TweenPosition(position, animationDuration, true)
+			    .SetEase(animationEase)
+			    .SetDelay(delay);
+
+		    card.TweenRotation(rotation, animationDuration, true)
+			    .SetEase(animationEase)
+			    .SetDelay(delay);
 	    }
 
 
@@ -338,17 +262,7 @@ namespace FXnRXn
 	    
 	    
 	    // -------------------------------------------- Gizmos ---------------------------------------------------------
-	    /// <summary>
-	    /// Draw gizmos for visualization
-	    /// </summary>
-	    private void OnDrawGizmos()
-	    {
-		    if (layoutMode == LayoutMode.Spline)
-		    {
-			   if(useGizmos) splinePath.DrawGizmos(Color.cadetBlue);
-		    }
-	    }
-	    
+
 	    
 	    
 	    // ------------------------------------------ Public Getters ---------------------------------------------------

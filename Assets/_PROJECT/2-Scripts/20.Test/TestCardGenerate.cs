@@ -54,6 +54,15 @@ namespace FXnRXn
 
 
         // ---------------------------------------- Public Properties --------------------------------------------------
+        
+        [Button(ButtonSizes.Large)]
+        public void DrawStartingHand(int startingHandSize)
+        {
+	        if (deckManager != null)
+	        {
+		        deckManager.DrawCards(startingHandSize);
+	        }
+        }
 
 
     	// ---------------------------------------- Private Properties -------------------------------------------------
@@ -68,6 +77,7 @@ namespace FXnRXn
             
 		    // Create visual card GameObject
 		    GameObject cardObject = Instantiate(cardPrefab);
+		    
             
 		    // Initialize the Card component with data
 		    Card cardComponent = cardObject.GetComponent<Card>();
@@ -86,7 +96,7 @@ namespace FXnRXn
 		    // Add to hand layout (this will parent it and animate it in)
 		    if (cardHand != null)
 		    {
-			    cardHand.AddCard(cardObject);
+			   cardHand.AddCard(cardObject);
 		    }
             
 		    DebugSystem.Info($"HandManager: Created visual card for {cardData.cardName}");
